@@ -1,0 +1,125 @@
+#!/usr/bin/env python3
+
+import sys
+from twisted.web import server, resource, util
+from twisted.internet import defer, reactor, ssl
+import chardet
+import subprocess
+import pathlib
+import traceback
+import shutil
+import chardet
+import typeguard
+
+# todo: requirements.txt
+# see: (here and in all other Py projects) from myapp.module import something with typeguard.importhook.install_import_hook()
+
+False and print(defer)
+
+scope = {'indexString': ''}
+
+
+@typeguard.typechecked
+def main() -> None:
+  try:
+    argv = sys.argv[1:]
+
+    compile()
+
+    if bool(len(argv)) and argv[0] == 'dev:start':
+      subprocess.Popen(['signal', 'http:redirect'])
+      f = open('./var/certs/server.pem')
+      certData = f.read()
+      f.close()
+      s = server.Site(TlsTcpServer())
+      certificate = ssl.PrivateCertificate.loadPEM(certData)
+      reactor.listenSSL(443, s, certificate.options())
+      reactor.run()
+      return
+
+    if bool(len(argv)) and argv[0] == 'http:redirect':
+      s = server.Site(TcpServer())
+      reactor.listenTCP(80, s)
+      reactor.run()
+      return
+  except Exception as ex:
+    print(traceback.format_exc())
+
+
+class TlsTcpServer(resource.Resource):
+  isLeaf = True
+
+  def returnContent(self, deferred, request, msg):
+    request.write(msg)
+    request.finish()
+
+  def cancelAnswer(self, err, request, delayedTask):
+    delayedTask.cancel()
+
+  def render_GET(self, request):
+    try:
+      uri = btostr(request.uri)
+      if uri != '/' and pathlib.Path('.' + uri).exists():
+        f = open('.' + uri, 'rb')
+        file = f.read()
+        f.close()
+        request.setHeader(b"content-type", b"text/html")
+        return f.read()
+      return scope['indexString'].encode('utf-8')
+    except Exception as ex:
+      print(traceback.format_exc())
+      return ''.encode('utf-8')
+
+  def render_POST(self, request):
+    try:
+      return ''.encode('utf-8')
+    except Exception as ex:
+      print(traceback.format_exc())
+      return None
+
+
+def compile():
+  indexFilepath = './var/resources/index.html'
+  if not pathlib.Path(indexFilepath).exists():
+    raise Exception('"' + indexFilepath + '" is missing')
+  indexCompilepath = './var/internal/compile/index.html'
+  shutil.copy(indexFilepath, indexCompilepath)
+  if not pathlib.Path(indexFilepath).exists():
+    raise Exception('Compiled "' + indexCompilepath + '" is missing')
+  f = open(indexCompilepath)
+  scope['indexString'] = f.read()
+  f.close()
+
+
+#
+
+
+class TcpServer(resource.Resource):
+  isLeaf = True
+
+  def returnContent(self, deferred, request, msg):
+    request.write(msg)
+    request.finish()
+
+  def cancelAnswer(self, err, request, delayedTask):
+    delayedTask.cancel()
+
+  def render_GET(self, request):
+    urlPath = request.URLPath()
+    urlPath.scheme = b'https'
+    return util.redirectTo(
+        str(urlPath).encode(chardet.detect(request.uri)['encoding']), request)
+
+  def render_POST(self, request):
+    urlPath = request.URLPath()
+    urlPath.scheme = b'https'
+    return util.redirectTo(
+        str(urlPath).encode(chardet.detect(request.uri)['encoding']), request)
+
+
+def btostr(bytes):
+  return bytes.decode(chardet.detect(bytes)['encoding'])
+
+
+main()
+False and sys.exit(0)

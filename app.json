@@ -1,0 +1,7 @@
+{
+  "name": "Pyx Model",
+  "bundle": "com.sotaoi.dev.pxy_model",
+  "version": 1,
+  "environments": ["production", "staging", "testing", "development", "local"],
+  "xxx": "no_censoring"
+}
